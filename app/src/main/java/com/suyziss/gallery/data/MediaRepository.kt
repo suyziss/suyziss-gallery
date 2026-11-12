@@ -2,13 +2,12 @@ package com.suyziss.gallery.data
 
 import android.content.ContentResolver
 import android.content.ContentUris
-import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 
 data class MediaItem(
     val id: Long,
-    val uri: Uri,
+    val uri: String,
     val name: String,
     val mimeType: String?,
     val dateAddedSeconds: Long,
@@ -84,7 +83,7 @@ class MediaStoreRepository(private val resolver: ContentResolver) : MediaReposit
                 val id = result.getLong(idIndex)
                 rows += MediaItem(
                     id = id,
-                    uri = ContentUris.withAppendedId(collection, id),
+                    uri = ContentUris.withAppendedId(collection, id).toString(),
                     name = result.getString(nameIndex) ?: "Без названия",
                     mimeType = if (mimeIndex >= 0 && !result.isNull(mimeIndex)) result.getString(mimeIndex) else null,
                     dateAddedSeconds = result.getLong(dateIndex),
