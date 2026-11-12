@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.net.Uri
 import android.os.Bundle
 import android.content.res.Configuration
 import androidx.activity.ComponentActivity
@@ -107,13 +108,13 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import coil.decode.VideoFrameDecoder
 import androidx.media3.common.MediaItem as PlayerMediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.suyziss.gallery.data.MediaIndexWorker
 import com.suyziss.gallery.data.MediaItem
-import com.suyziss.gallery.domain.MediaFilter
-import com.suyziss.gallery.domain.MediaSort
 import com.suyziss.gallery.ui.GalleryUiState
 import com.suyziss.gallery.ui.GalleryViewModel
 import java.util.concurrent.TimeUnit
@@ -169,30 +170,7 @@ private fun GalleryRoot() {
 
     val visibleMedia by remember(state.media, state.query, state.filter, state.sort) {
         derivedStateOf {
-            val query = state.query.trim()
-            state.media.asSequence()
-                .filter {
-                    when (state.filter) {
-                        MediaFilter.ALL -> true
-                        MediaFilter.PHOTOS -> !it.isVideo
-                        MediaFilter.VIDEOS -> it.isVideo
-                    }
-                }
-                .filter { query.isEmpty() || it.name.contains(query, ignoreCase = true) }
-                .let { sequence ->
-                    when (state.sort) {
-                        MediaSort.DATE_NEWEST -> sequence.sortedWith(
-                            compareByDescending<MediaItem> { it.dateAddedSeconds }.thenByDescending { it.id }
-                        )
-                        MediaSort.NAME_ASCENDING -> sequence.sortedWith(
-                            compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }
-                        )
-                        MediaSort.SIZE_LARGEST -> sequence.sortedWith(
-                            compareByDescending<MediaItem> { it.sizeBytes }.thenBy { it.name.lowercase() }
-                        )
-                    }
-                }
-                .toList()
+            galleryViewModel.visibleMedia(state)
         }
     }
 
@@ -461,7 +439,11 @@ private fun SortMenu(current: MediaSort, onSelected: (MediaSort) -> Unit) {
 
 @Composable
 private fun MediaThumbnail(item: MediaItem, onClick: () -> Unit) {
-    val painter = rememberAsyncImagePainter(model = item.uri)
+    val painter = rememberAsyncImagePainter(model = remember(item.id) {
+        ImageRequest.Builder(LocalContext.current).data(Uri.parse(item.uri))
+            .apply { if (item.isVideo) decoderFactory(VideoFrameDecoder.Factory()) }
+            .build()
+    })
     Box(
         Modifier
             .fillMaxWidth()
@@ -596,7 +578,7 @@ private fun MediaViewerScreen(
                     }
                 }
                 Image(
-                    painter = rememberAsyncImagePainter(item.uri),
+                    painter = rememberAsyncImagePainter(Uri.parse(item.uri)),
                     contentDescription = item.name,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
@@ -637,7 +619,7 @@ private fun VideoPlayer(item: MediaItem, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val player = remember(item.uri) {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(PlayerMediaItem.fromUri(item.uri))
+            setMediaItem(PlayerMediaItem.fromUri(Uri.parse(item.uri)))
             prepare()
         }
     }
@@ -712,7 +694,7 @@ private fun isPartialMediaAccess(context: Context): Boolean {
         context,
         Manifest.permission.READ_MEDIA_VIDEO
     ) == PackageManager.PERMISSION_GRANTED
-    return selectedPermission && !fullImages && !fullVideos
+    return selectedPermission && (!fullImages || !fullVideos)
 }
 
 private fun scheduleMediaIndex(context: Context) {
