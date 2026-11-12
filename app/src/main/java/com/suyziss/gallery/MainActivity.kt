@@ -659,7 +659,10 @@ private fun ViewerMediaPage(
                         this.translationX = translationX
                         this.translationY = translationY
                     }
-                    .transformable(transformState)
+                    .transformable(
+                        state = transformState,
+                        canPan = { scale > 1.001f }
+                    )
             )
         }
     }
