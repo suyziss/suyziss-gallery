@@ -11,14 +11,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +29,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -121,7 +118,7 @@ import com.suyziss.gallery.ui.GalleryUiState
 import com.suyziss.gallery.ui.GalleryViewModel
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.collectLatest
-import kotlin.math.abs
+import kotlin.math.absoluteValue
 
 
 @Composable
@@ -524,19 +521,37 @@ private fun ShimmerPlaceholder(modifier: Modifier = Modifier) {
 private fun MediaViewerScreen(
     item: MediaItem,
     neighbors: List<MediaItem>,
-    onBack: () -> Unit,
-    onOpenNeighbor: (MediaItem) -> Unit
+    onBack: () -> Unit
 ) {
-    val position = remember(item.id, neighbors) { neighbors.indexOfFirst { it.id == item.id } }
-    val previous = neighbors.getOrNull(position + 1)
-    val next = neighbors.getOrNull(position - 1)
-    var horizontalDrag by remember(item.id) { mutableFloatStateOf(0f) }
+    val pages = remember(item.id, neighbors) {
+        if (neighbors.isEmpty()) listOf(item) else neighbors
+    }
+    val initialPage = remember(item.id, pages) {
+        pages.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
+    }
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { pages.size }
+    )
+    val currentItem = pages.getOrNull(pagerState.currentPage) ?: item
+    var currentPageZoomed by remember(currentItem.id) { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(item.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Column {
+                        Text(
+                            currentItem.name,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            if (pages.isNotEmpty()) "${pagerState.currentPage + 1} из ${pages.size}" else "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -549,71 +564,109 @@ private fun MediaViewerScreen(
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .pointerInput(item.id, previous?.id, next?.id) {
-                    horizontalDrag = 0f
-                    detectHorizontalDragGestures(
-                        onHorizontalDrag = { change, amount ->
-                            horizontalDrag += amount
-                            change.consume()
-                        },
-                        onDragEnd = {
-                            if (horizontalDrag < -100f && next != null) onOpenNeighbor(next)
-                            else if (horizontalDrag > 100f && previous != null) onOpenNeighbor(previous)
-                            horizontalDrag = 0f
-                        }
-                    )
-                },
+                .padding(padding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (item.isVideo) {
-                VideoPlayer(item = item, modifier = Modifier.fillMaxWidth().weight(1f))
-            } else {
-                var scale by remember(item.id) { mutableFloatStateOf(1f) }
-                var translationX by remember(item.id) { mutableFloatStateOf(0f) }
-                var translationY by remember(item.id) { mutableFloatStateOf(0f) }
-                val transformState = rememberTransformableState { zoom, pan, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 6f)
-                    translationX += pan.x
-                    translationY += pan.y
-                    if (scale <= 1f) {
-                        translationX = 0f
-                        translationY = 0f
-                    }
-                }
-                Image(
-                    painter = rememberAsyncImagePainter(Uri.parse(item.uri)),
-                    contentDescription = item.name,
-                    contentScale = ContentScale.Fit,
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                userScrollEnabled = !currentPageZoomed,
+                key = { page -> pages[page].id },
+                pageSpacing = 0.dp,
+                beyondViewportPageCount = 1
+            ) { page ->
+                val pageItem = pages[page]
+                val pageOffset = (
+                    pagerState.currentPage - page + pagerState.currentPageOffsetFraction
+                ).absoluteValue.coerceIn(0f, 1f)
+                ViewerMediaPage(
+                    item = pageItem,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .background(MaterialTheme.colorScheme.surface)
+                        .fillMaxSize()
                         .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            this.translationX = translationX
-                            this.translationY = translationY
+                            alpha = 1f - (0.12f * pageOffset)
+                            val pageScale = 1f - (0.035f * pageOffset)
+                            scaleX = pageScale
+                            scaleY = pageScale
+                        },
+                    onZoomChanged = { zoomed ->
+                        if (pagerState.currentPage == page) {
+                            currentPageZoomed = zoomed
                         }
-                        .transformable(transformState)
+                    }
                 )
             }
+
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "${formatBytes(item.sizeBytes)} • ${item.mimeType ?: "Файл"}",
+                    "${formatBytes(currentItem.sizeBytes)} • ${currentItem.mimeType ?: "Файл"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    if (position >= 0) "${position + 1} / ${neighbors.size}" else "",
+                    "${pagerState.currentPage + 1} / ${pages.size}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ViewerMediaPage(
+    item: MediaItem,
+    modifier: Modifier = Modifier,
+    onZoomChanged: (Boolean) -> Unit
+) {
+    if (item.isVideo) {
+        VideoPlayer(
+            item = item,
+            modifier = modifier.background(androidx.compose.ui.graphics.Color.Black)
+        )
+    } else {
+        var scale by remember(item.id) { mutableFloatStateOf(1f) }
+        var translationX by remember(item.id) { mutableFloatStateOf(0f) }
+        var translationY by remember(item.id) { mutableFloatStateOf(0f) }
+        val transformState = rememberTransformableState { zoom, pan, _ ->
+            scale = (scale * zoom).coerceIn(1f, 6f)
+            translationX += pan.x
+            translationY += pan.y
+            if (scale <= 1.001f) {
+                scale = 1f
+                translationX = 0f
+                translationY = 0f
+            }
+            onZoomChanged(scale > 1.001f)
+        }
+        Box(
+            modifier = modifier
+                .background(MaterialTheme.colorScheme.surface)
+                .clip(RoundedCornerShape(2.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(Uri.parse(item.uri)),
+                contentDescription = item.name,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        this.translationX = translationX
+                        this.translationY = translationY
+                    }
+                    .transformable(transformState)
+            )
         }
     }
 }
