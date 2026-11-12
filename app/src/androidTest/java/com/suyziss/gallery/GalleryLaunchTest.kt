@@ -1,6 +1,6 @@
 package com.suyziss.gallery
 
-import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import org.junit.Rule
@@ -12,7 +12,7 @@ class GalleryLaunchTest {
 
     @Test
     fun galleryLaunchesAndShowsItsTitle() {
-        composeRule.onNodeWithText("Suyziss Gallery").assertExists()
+        composeRule.onNodeWithText("Suyziss Gallery").assertIsDisplayed()
     }
 
     @Test
