@@ -115,6 +115,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.suyziss.gallery.data.MediaIndexWorker
 import com.suyziss.gallery.data.MediaItem
+import com.suyziss.gallery.domain.MediaFilter
+import com.suyziss.gallery.domain.MediaSort
 import com.suyziss.gallery.ui.GalleryUiState
 import com.suyziss.gallery.ui.GalleryViewModel
 import java.util.concurrent.TimeUnit
@@ -439,11 +441,13 @@ private fun SortMenu(current: MediaSort, onSelected: (MediaSort) -> Unit) {
 
 @Composable
 private fun MediaThumbnail(item: MediaItem, onClick: () -> Unit) {
-    val painter = rememberAsyncImagePainter(model = remember(item.id) {
-        ImageRequest.Builder(LocalContext.current).data(Uri.parse(item.uri))
+    val context = LocalContext.current
+    val imageRequest = remember(item.id, context) {
+        ImageRequest.Builder(context).data(Uri.parse(item.uri))
             .apply { if (item.isVideo) decoderFactory(VideoFrameDecoder.Factory()) }
             .build()
-    })
+    }
+    val painter = rememberAsyncImagePainter(model = imageRequest)
     Box(
         Modifier
             .fillMaxWidth()
