@@ -12,8 +12,8 @@ android {
         applicationId = "com.suyziss.gallery"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = providers.gradleProperty("galleryVersionCode").orElse("2").get().toInt()
+        versionName = providers.gradleProperty("galleryVersion").orElse("0.2.0").get()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
