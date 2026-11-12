@@ -3,6 +3,8 @@ package com.suyziss.gallery.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.suyziss.gallery.data.MediaCacheStore
 import com.suyziss.gallery.data.MediaCursor
 import com.suyziss.gallery.data.MediaItem
@@ -75,7 +77,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 mutableState.update { it.copy(isLoading = false, error = "Нет доступа к выбранным фото и видео. Проверьте разрешения.") }
             } catch (error: Exception) {
                 mutableState.update {
-                    it.copy(isLoading = false, error = "Не удалось прочитать медиатеку: §{error.localizedMessage ?: "неизвестная ошибка"}")
+                    it.copy(isLoading = false, error = "Не удалось прочитать медиатеку: ${error.localizedMessage ?: "неизвестная ошибка"}")
                 }
             } finally {
                 requestInFlight = false
@@ -105,11 +107,21 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 mutableState.update { it.copy(isLoadingMore = false, error = "Доступ к медиатеке изменился. Обновите разрешения.") }
             } catch (error: Exception) {
                 mutableState.update {
-                    it.copy(isLoadingMore = false, error = "Ошибка загрузки следующей страницы: §{error.localizedMessage ?: "неизвестная ошибка"}")
+                    it.copy(isLoadingMore = false, error = "Ошибка загрузки следующей страницы: ${error.localizedMessage ?: "неизвестная ошибка"}")
                 }
             } finally {
                 requestInFlight = false
             }
+        }
+    }
+
+    class Factory(private val application: Application) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(GalleryViewModel::class.java)) {
+                return GalleryViewModel(application) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
     }
 
