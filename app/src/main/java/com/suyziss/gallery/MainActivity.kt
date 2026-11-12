@@ -220,13 +220,7 @@ private fun GalleryRoot() {
                 MediaViewerScreen(
                     item = selected,
                     neighbors = visibleMedia,
-                    onBack = { navController.popBackStack() },
-                    onOpenNeighbor = { neighbor ->
-                        navController.navigate("viewer/${neighbor.id}") {
-                            popUpTo("gallery") { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    }
+                    onBack = { navController.popBackStack() }
                 )
             }
         }
