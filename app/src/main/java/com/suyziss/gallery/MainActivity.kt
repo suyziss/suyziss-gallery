@@ -3,8 +3,8 @@ package com.suyziss.gallery
 import android.Manifest
 import android.content.ContentUris
 import android.content.ContentResolver
-import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -26,11 +26,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Collections
-import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -156,23 +151,8 @@ private fun GalleryApp() {
                                     Text("Photos", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
-                            actions = {
-                                IconButton(onClick = { /* Search field is shown below. */ }) {
-                                    Icon(Icons.Rounded.Search, contentDescription = "Поиск")
-                                }
-                                IconButton(onClick = { media = emptyList(); hasAccess = hasMediaPermission(context) }) {
-                                    Icon(Icons.Rounded.Settings, contentDescription = "Обновить медиатеку")
-                                }
-                            }
                         )
                     },
-                    bottomBar = {
-                        NavigationBar {
-                            NavigationBarItem(selected = true, onClick = {}, icon = { Icon(Icons.Rounded.Image, null) }, label = { Text("Фото") })
-                            NavigationBarItem(selected = false, onClick = {}, icon = { Icon(Icons.Rounded.Collections, null) }, label = { Text("Альбомы") })
-                            NavigationBarItem(selected = false, onClick = {}, icon = { Icon(Icons.Rounded.Lock, null) }, label = { Text("Приватное") })
-                        }
-                    }
                 ) { padding ->
                     Column(Modifier.fillMaxSize().padding(padding)) {
                         OutlinedTextField(
@@ -222,8 +202,10 @@ private fun GalleryApp() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MediaViewer(item: MediaItem, onBack: () -> Unit) {
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -233,12 +215,28 @@ private fun MediaViewer(item: MediaItem, onBack: () -> Unit) {
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally) {
-            AsyncImage(
-                model = item.uri,
-                contentDescription = item.name,
-                modifier = Modifier.fillMaxWidth().weight(1f).background(MaterialTheme.colorScheme.surface),
-                contentScale = ContentScale.Fit
-            )
+            if (item.mime?.startsWith("video/") == true) {
+                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Видеофайл", style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(item.uri, item.mime)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            runCatching { context.startActivity(intent) }
+                        }) { Text("Открыть видео") }
+                    }
+                }
+            } else {
+                AsyncImage(
+                    model = item.uri,
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxWidth().weight(1f).background(MaterialTheme.colorScheme.surface),
+                    contentScale = ContentScale.Fit
+                )
+            }
             Text(
                 text = "${item.mime ?: "Файл"} • ${formatBytes(item.size)}",
                 modifier = Modifier.padding(16.dp),
@@ -265,7 +263,11 @@ private fun EmptyState(title: String, subtitle: String, action: String? = null, 
 
 private fun hasMediaPermission(context: Context): Boolean {
     val permissions = if (Build.VERSION.SDK_INT >= 33) {
-        listOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+        listOf(
+            Manifest.permission.READ_MEDIA_IMAGES,
+            Manifest.permission.READ_MEDIA_VIDEO,
+            Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+        )
     } else listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     return permissions.any { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
 }
