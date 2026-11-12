@@ -2,6 +2,7 @@ package com.suyziss.gallery.domain
 
 import com.suyziss.gallery.data.MediaItem
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FilterMediaUseCaseTest {
@@ -28,6 +29,18 @@ class FilterMediaUseCaseTest {
     fun searchesNamesIgnoringCase() {
         val result = useCase(fixtures, "ALPHA", MediaFilter.ALL, MediaSort.DATE_NEWEST)
         assertEquals(listOf("Alpha.png"), result.map { it.name })
+    }
+
+    @Test
+    fun trimsSearchQuery() {
+        val result = useCase(fixtures, "  alpha  ", MediaFilter.ALL, MediaSort.DATE_NEWEST)
+        assertEquals(listOf(3L), result.map { it.id })
+    }
+
+    @Test
+    fun returnsNoItemsWhenSearchDoesNotMatch() {
+        val result = useCase(fixtures, "missing-file", MediaFilter.ALL, MediaSort.DATE_NEWEST)
+        assertTrue(result.isEmpty())
     }
 
     @Test
