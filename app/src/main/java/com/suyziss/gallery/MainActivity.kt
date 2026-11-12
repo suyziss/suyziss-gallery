@@ -616,6 +616,7 @@ private fun MediaViewerScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ViewerMediaPage(
     item: MediaItem,
