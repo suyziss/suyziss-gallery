@@ -7,8 +7,7 @@ import java.io.DataOutputStream
 class MediaCacheStore(context: Context) {
     private val file = java.io.File(context.filesDir, "media-index-v1.bin")
 
-    @Synchronized
-    fun read(): List<MediaItem> = runCatching {
+    fun read(): List<MediaItem> = synchronized(LOCK) { runCatching {
         if (!file.exists()) return emptyList()
         DataInputStream(file.inputStream().buffered()).use { input ->
             val count = input.readInt().coerceIn(0, MAX_ITEMS)
@@ -27,8 +26,7 @@ class MediaCacheStore(context: Context) {
         }
     }.getOrDefault(emptyList())
 
-    @Synchronized
-    fun write(items: List<MediaItem>) {
+    fun write(items: List<MediaItem>) = synchronized(LOCK) {
         runCatching {
             val temporary = java.io.File(file.parentFile, file.name + ".tmp")
             DataOutputStream(temporary.outputStream().buffered()).use { output ->
@@ -51,5 +49,8 @@ class MediaCacheStore(context: Context) {
         }
     }
 
-    companion object { private const val MAX_ITEMS = 600 }
+    companion object {
+        private const val MAX_ITEMS = 600
+        private val LOCK = Any()
+    }
 }
