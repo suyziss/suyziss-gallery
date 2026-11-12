@@ -1,7 +1,6 @@
 package com.suyziss.gallery.data
 
 import android.content.Context
-import android.net.Uri
 import java.io.DataInputStream
 import java.io.DataOutputStream
 
@@ -16,7 +15,7 @@ class MediaCacheStore(context: Context) {
             buildList(count) {
                 repeat(count) {
                     val id = input.readLong()
-                    val uri = Uri.parse(input.readUTF())
+                    val uri = input.readUTF()
                     val name = input.readUTF()
                     val mime = input.readUTF().ifEmpty { null }
                     val date = input.readLong()
