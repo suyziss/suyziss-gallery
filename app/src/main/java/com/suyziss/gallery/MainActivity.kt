@@ -60,7 +60,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -74,7 +73,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberInfiniteTransition
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.animation.core.LinearEasing
@@ -274,10 +273,10 @@ private fun GalleryScreen(
 ) {
     val gridState = rememberLazyGridState()
 
-    LaunchedEffect(gridState, state.media.size, state.hasMore, state.isLoadingMore) {
+    LaunchedEffect(gridState, visibleMedia.size, state.hasMore, state.isLoadingMore) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collectLatest { lastVisible ->
-                if (lastVisible != null && lastVisible >= state.media.size - 8 && state.hasMore) {
+                if (lastVisible != null && lastVisible >= visibleMedia.size - 8 && state.hasMore) {
                     onLoadMore()
                 }
             }
@@ -324,7 +323,7 @@ private fun GalleryScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    if (state.isLoading && state.media.isEmpty()) "Загрузка…" else "Найдено: ${visibleMedia.size}",
+                    if (state.isLoading && state.media.isEmpty()) "Загрузка…" else if (state.hasMore) "Показано: ${visibleMedia.size}" else "Найдено: ${visibleMedia.size}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
